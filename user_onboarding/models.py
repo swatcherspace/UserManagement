@@ -9,10 +9,12 @@ from django.dispatch import receiver
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 
+# Token Generation
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
+
 class User(models.Model):
     id = models.UUIDField(primary_key=True,default=uuid.uuid4)
     email_id = models.EmailField(verbose_name='email address',

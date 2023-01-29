@@ -22,36 +22,45 @@ class GetPortfolioViewSet(viewsets.ModelViewSet):
     filter_backends = (filters.DjangoFilterBackend,)
 
     def create(self, request):
-        id = request.data.get("user_id", None)
-        name = request.data.get("name", None)
-        if id is None or name is None:
-            return Response(data={"data":{},'message':'',"status":400}, status=status.HTTP_400_BAD_REQUEST) 
-        
-        user_obj = User.objects.get(id=id)
-        print(id,user_obj)
-        #Create the PortfolioData
-        UserPortfolio.objects.create(
-            stock_id = user_obj,
+        try:
+            id = request.data.get("user_id", None)
             name = request.data.get("name", None)
-        )
-        serializer = UserPortfolioSerializer(data = {"stock_id": user_obj.id, "name": request.data.get("name", None)})
-        if serializer.is_valid():    
+            if id is None or name is None:
+                return Response(data={"data":{},'message':'',"status":400}, status=status.HTTP_400_BAD_REQUEST) 
+            try:
+                user_obj = User.objects.get(id=id)
+            except Exception as e:
+                return Response(data={"data": e,'message':"User doesn't exists","status":400}, status=status.HTTP_400_BAD_REQUEST) 
+            print(id,user_obj)
+            #Create the PortfolioData only in casee when user exists in user table
+            UserPortfolio.objects.create(
+                stock_id = user_obj,
+                name = request.data.get("name", None)
+            )
+            # Serialized data back to caller
+            serializer = UserPortfolioSerializer(data = {"stock_id": user_obj.id, "name": request.data.get("name", None)})
+            if serializer.is_valid():    
+                return Response({
+                                    'data': serializer.data,
+                                    'status': status.HTTP_200_OK,
+                                    'message': 'Created User Successfully'
+                                }, status=status.HTTP_200_OK)
+        except Exception as e:
+                return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+    def retrieve(self, request, pk=None):
+        try:
+            user_obj = User.objects.filter(id=pk).first()
+            user_obj = UserPortfolio.objects.filter(stock_id=user_obj.id)
+            serialized_data = UserPortfolioSerializer(user_obj, many=True)
             return Response({
-                                'data': serializer.data,
+                                'data': serialized_data.data,
                                 'status': status.HTTP_200_OK,
                                 'message': 'Created User Successfully'
                             }, status=status.HTTP_200_OK)
-
-    def retrieve(self, request, pk=None):
-        user_obj = User.objects.filter(id=pk).first()
-        user_obj = UserPortfolio.objects.filter(stock_id=user_obj.id)
-        serialized_data = UserPortfolioSerializer(user_obj, many=True)
-        return Response({
-                            'data': serialized_data.data,
-                            'status': status.HTTP_200_OK,
-                            'message': 'Created User Successfully'
-                        }, status=status.HTTP_200_OK)
-
+        except Exception as e:
+                return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+                
 class UserOnboardingViewSet(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication,TokenAuthentication]
     permission_classes = (IsAuthenticated,)
@@ -59,7 +68,7 @@ class UserOnboardingViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-created')
     filter_backends = (filters.DjangoFilterBackend,)
     
-    #Used to create USER
+    #Used to create USER with minimum required credentials
     def create(self, request):
         try:
             serializer = UserSerializer(data=request.data)

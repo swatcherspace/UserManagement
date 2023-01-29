@@ -4,6 +4,8 @@ from rest_framework import serializers
 from .models import *
 
 class UserSerializer(serializers.ModelSerializer):
+    #To send specific fields
+    # For example in query params -> fields x,y,z 
     def __init__(self, *args, **kwargs):
         request = kwargs.get('context', {}).get('request')
         str_fields = request.GET.get('fields', '') if request else None
