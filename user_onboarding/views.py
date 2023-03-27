@@ -13,7 +13,8 @@ from rest_framework.response import Response
 from django.shortcuts import render
 from .serializers import *
 from .models import *
-
+from UserManagement.settings import PORTFORLIOMGMT
+import time
 class GetPortfolioViewSet(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication,TokenAuthentication]
     permission_classes = (IsAuthenticated,)
@@ -31,33 +32,35 @@ class GetPortfolioViewSet(viewsets.ModelViewSet):
                 user_obj = User.objects.get(id=id)
             except Exception as e:
                 return Response(data={"data": e,'message':"User doesn't exists","status":400}, status=status.HTTP_400_BAD_REQUEST) 
-            print(id,user_obj)
+            
             #Create the PortfolioData only in casee when user exists in user table
             UserPortfolio.objects.create(
-                stock_id = user_obj,
-                name = request.data.get("name", None)
+                user_id = user_obj,
+                name = name
             )
             # Serialized data back to caller
-            serializer = UserPortfolioSerializer(data = {"stock_id": user_obj.id, "name": request.data.get("name", None)})
+            serializer = UserPortfolioSerializer(data = {"user_id": user_obj.id, "name": name})
             if serializer.is_valid():    
                 return Response({
                                     'data': serializer.data,
                                     'status': status.HTTP_200_OK,
                                     'message': 'Created User Successfully'
-                                }, status=status.HTTP_200_OK)
+                                }, status=status.HTTP_200_OK, content_type="application/json")
         except Exception as e:
                 return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
 
     def retrieve(self, request, pk=None):
         try:
+            
             user_obj = User.objects.filter(id=pk).first()
-            user_obj = UserPortfolio.objects.filter(stock_id=user_obj.id)
+            user_obj = UserPortfolio.objects.filter(user_id=user_obj.id)
             serialized_data = UserPortfolioSerializer(user_obj, many=True)
+            
             return Response({
                                 'data': serialized_data.data,
                                 'status': status.HTTP_200_OK,
                                 'message': 'Created User Successfully'
-                            }, status=status.HTTP_200_OK)
+                            }, status=status.HTTP_200_OK, content_type="application/json")
         except Exception as e:
                 return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
                 
@@ -89,3 +92,55 @@ class UserOnboardingViewSet(viewsets.ModelViewSet):
 
     
 
+class StockViewSet(viewsets.ViewSet):
+    authentication_classes = [SessionAuthentication,TokenAuthentication]
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserSerializer
+    queryset = User.objects.all().order_by('-created')
+    filter_backends = (filters.DjangoFilterBackend,)
+
+    # Create stocks based on a particular user_id
+    def retrieve(self, request, pk=None):
+        try:
+            user_obj = UserPortfolio.objects.filter(user_id=pk)
+            serialized_data = UserPortfolioSerializer(user_obj, many=True)
+            stocks = [user_stocks["name"] for user_stocks in serialized_data.data]
+            resp = []
+            for stock in stocks:
+                url = [PORTFORLIOMGMT+'create-stock?name='+stock,PORTFORLIOMGMT+'/create-fundamentals?name='+stock]
+                payload = {}
+                headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
+                resp.append([requests.post(url, data=payload, headers=headers) for url in url])
+            return Response({
+                                'data': resp,
+                                'status': status.HTTP_200_OK,
+                                'message': 'Created User Successfully'
+                            }, status=status.HTTP_200_OK, content_type="application/json")
+        except Exception as e:
+                return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+    # Retrieve stocks based on names
+    def list(self, request):
+        try:
+            stocks = request.data.get("stocks", None)
+            resp = []
+            for stock in stocks:
+                stock_by_name_url = PORTFORLIOMGMT+'get-stock-by-name?name='+stock
+                fundamentals_by_name_url = PORTFORLIOMGMT+'get-fundamentals-by-name?name='+stock
+                payload = {}
+                headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
+                resp.append([requests.get(stock_by_name_url, data=payload, headers=headers).json(),
+                             requests.get(fundamentals_by_name_url, data=payload, headers=headers).json()])
+            return Response({
+                                'data': resp,
+                                'status': status.HTTP_200_OK,
+                                'message': 'Created User Successfully'
+                            }, status=status.HTTP_200_OK, content_type="application/json")
+
+        except Exception as e:
+            return Response(data={"data": e,'message':"Something Went Wrong","status":500}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+             
+              
+             
+             
+        

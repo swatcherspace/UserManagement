@@ -27,7 +27,7 @@ class User(models.Model):
     modified = models.DateTimeField(auto_now_add=True, blank=True)
 
 class UserPortfolio(models.Model):
-    stock_id = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_portfolio")
+    user_id = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_portfolio")
     name = models.CharField(max_length=75, null=True, blank=True)
     created = models.DateTimeField(default=datetime.now(tz=timezone.utc), blank=True)
     modified = models.DateTimeField(auto_now_add=True, blank=True)
