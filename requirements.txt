@@ -82,3 +82,4 @@ django_debug_toolbar==3.8.1
 djangorestframework==3.14.0
 drf-dynamic-fields==0.4.0
 python-decouple
+django-jsonfield

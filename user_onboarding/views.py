@@ -15,13 +15,20 @@ from .serializers import *
 from .models import *
 from UserManagement.settings import PORTFORLIOMGMT
 import time
+from .utils import get_symbols
+NSE_MAPPING= get_symbols("NSE")
+NYSE_MAPPING= get_symbols("NYSE")
 class GetPortfolioViewSet(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication,TokenAuthentication]
     permission_classes = (IsAuthenticated,)
     serializer_class = UserPortfolioSerializer
     queryset = UserPortfolio.objects.all().order_by('-created')
     filter_backends = (filters.DjangoFilterBackend,)
-
+    
+    # def get_stock_from_name(name):
+    #     for key, val in NSE_MAPPING[0].items():
+            
+    
     def create(self, request):
         try:
             id = request.data.get("user_id", None)
